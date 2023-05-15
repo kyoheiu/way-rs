@@ -91,7 +91,7 @@ pub const VERIFIED: &str = r#"
 
 <head>
     <meta charSet="UTF-8" />
-    <title>suica</title>
+    <title>way</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 
@@ -143,7 +143,7 @@ pub const VERIFIED: &str = r#"
         <div class="welcome">VERIFIED!</div>
         <div class="logout-button">
             <p class="dashboard-link"></p>
-            <p><a href="/logout">
+            <p><a href="/api/logout">
                 <button>
                     ✋
                 </button></a></p>
