@@ -105,14 +105,11 @@ async fn login(
 ) -> impl IntoResponse {
     let username = log_in.username.trim();
     let password = log_in.password.trim();
-    println!("{}", env::var("WAY_USERNAME").unwrap());
-    println!("{}", env::var("WAY_PASSWORD").unwrap());
     if username == env::var("WAY_USERNAME").unwrap().trim()
         && password == env::var("WAY_PASSWORD").unwrap().trim()
     {
         let mut claims = BTreeMap::new();
         claims.insert("sub", env::var("WAY_SECRET_SUB").unwrap_or_default());
-        println!("{}", env::var("WAY_SECRET_SUB").unwrap());
         let token_str = claims.sign_with_key(&core.key).unwrap();
         let cookie = Cookie::build(COOKIE_NAME, token_str)
             .domain(env::var("WAY_DOMAIN").unwrap())
