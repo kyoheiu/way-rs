@@ -115,7 +115,7 @@ async fn login(
         println!("{}", env::var("WAY_SECRET_SUB").unwrap());
         let token_str = claims.sign_with_key(&core.key).unwrap();
         let cookie = Cookie::build(COOKIE_NAME, token_str)
-            .domain("localhost")
+            .domain(env::var("WAY_DOMAIN").unwrap())
             .path("/")
             .secure(true)
             .http_only(true)
