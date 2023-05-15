@@ -117,6 +117,7 @@ async fn login(
         let cookie = Cookie::build(COOKIE_NAME, token_str)
             .domain(env::var("WAY_DOMAIN").unwrap())
             .path("/")
+            .max_age(cookie::time::Duration::days(7))
             .secure(true)
             .http_only(true)
             .finish();
