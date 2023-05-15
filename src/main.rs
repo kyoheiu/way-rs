@@ -133,7 +133,14 @@ async fn login(
 #[debug_handler]
 async fn logout(cookies: Cookies) -> impl IntoResponse {
     if cookies.get(COOKIE_NAME).is_some() {
-        cookies.remove(Cookie::new(COOKIE_NAME, ""));
+        let cookie = Cookie::build(COOKIE_NAME, "")
+            .domain(env::var("WAY_DOMAIN").unwrap())
+            .path("/")
+            .max_age(cookie::time::Duration::seconds(0))
+            .secure(true)
+            .http_only(true)
+            .finish();
+        cookies.add(cookie);
         println!("cookie removed");
     }
     Redirect::to("/").into_response()
