@@ -123,7 +123,7 @@ async fn login(
         cookies.add(cookie);
 
         if let Some(rf) = params.get("ref") {
-            Redirect::permanent(rf).into_response()
+            Redirect::to(rf).into_response()
         } else {
             Redirect::to("/").into_response()
         }
