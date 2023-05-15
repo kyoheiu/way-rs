@@ -55,7 +55,7 @@ async fn main() {
         .route("/health", get(health))
         .route("/api/auth", get(auth))
         .route("/api/login", post(login))
-        .route("/logout", get(logout))
+        .route("/api/logout", get(logout))
         .layer(CookieManagerLayer::new())
         .with_state(core);
 
