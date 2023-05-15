@@ -31,7 +31,7 @@ impl Core {
         Core {
             key: HmacSha256::new_from_slice(
                 env::var("WAY_SECRET_KEY")
-                    .unwrap_or_else(|_| "some_secret".to_string())
+                    .unwrap()
                     .as_bytes(),
             )
             .unwrap(),
