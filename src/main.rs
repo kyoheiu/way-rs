@@ -1,5 +1,3 @@
-mod html;
-
 use axum::debug_handler;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -15,6 +13,9 @@ use std::collections::BTreeMap;
 use std::env;
 use std::sync::Arc;
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
+use tower_http::{
+    services::{ServeDir, ServeFile},
+};
 
 const COOKIE_NAME: &str = "way_auth";
 
@@ -56,6 +57,7 @@ async fn main() {
         .route("/api/login", post(login))
         .route("/api/logout", get(logout))
         .layer(CookieManagerLayer::new())
+        .nest_service("/static", ServeDir::new("static"))
         .with_state(core);
 
     // run it with hyper on localhost:3000
@@ -71,13 +73,15 @@ async fn health() -> Html<&'static str> {
 }
 
 #[debug_handler]
-async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<&'static str> {
+async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<String> {
     if is_valid(cookies, &core.decoding_key) {
         println!("logged in");
-        Html(html::VERIFIED)
+        let html = std::fs::read_to_string("static/verified.html").unwrap();
+        Html(html)
     } else {
         println!("not verified");
-        Html(html::INDEX)
+        let html = std::fs::read_to_string("static/index.html").unwrap();
+        Html(html)
     }
 }
 
