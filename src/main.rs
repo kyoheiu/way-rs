@@ -9,10 +9,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use hmac::{Hmac, Mac};
-use jwt::{SignWithKey, VerifyWithKey, VerifyingAlgorithm};
-use serde::Deserialize;
-use sha2::Sha256;
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::env;
 use std::sync::Arc;
@@ -20,21 +18,16 @@ use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 
 const COOKIE_NAME: &str = "way_auth";
 
-type HmacSha256 = Hmac<Sha256>;
-
 struct Core {
-    key: HmacSha256,
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
 }
 
 impl Core {
     fn default() -> Self {
         Core {
-            key: HmacSha256::new_from_slice(
-                env::var("WAY_SECRET_KEY")
-                    .unwrap()
-                    .as_bytes(),
-            )
-            .unwrap(),
+            encoding_key: EncodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
+            decoding_key: DecodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
         }
     }
 }
@@ -43,6 +36,12 @@ impl Core {
 struct LogIn {
     username: String,
     password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: String,
+    exp: usize
 }
 
 #[tokio::main]
@@ -73,7 +72,7 @@ async fn health() -> Html<&'static str> {
 
 #[debug_handler]
 async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<&'static str> {
-    if verify(cookies, &core.key) {
+    if is_valid(cookies, &core.decoding_key) {
         println!("logged in");
         Html(html::VERIFIED)
     } else {
@@ -88,7 +87,7 @@ async fn auth(
     cookies: Cookies,
     State(core): State<Arc<Core>>,
 ) -> impl IntoResponse {
-    if verify(cookies, &core.key) {
+    if is_valid(cookies, &core.decoding_key) {
         (StatusCode::OK, "Verified").into_response()
     } else {
         let rf = params.get("ref").unwrap();
@@ -108,10 +107,12 @@ async fn login(
     if username == env::var("WAY_USERNAME").unwrap().trim()
         && password == env::var("WAY_PASSWORD").unwrap().trim()
     {
-        let mut claims = BTreeMap::new();
-        claims.insert("sub", env::var("WAY_SECRET_SUB").unwrap_or_default());
-        let token_str = claims.sign_with_key(&core.key).unwrap();
-        let cookie = Cookie::build(COOKIE_NAME, token_str)
+        let my_claims = Claims {
+            sub: env::var("WAY_USERNAME").unwrap(),
+            exp: 2000000000
+        };
+        let token = encode(&Header::default(), &my_claims, &core.encoding_key).unwrap();
+        let cookie = Cookie::build(COOKIE_NAME, token)
             .domain(env::var("WAY_DOMAIN").unwrap())
             .path("/")
             .max_age(cookie::time::Duration::days(7))
@@ -146,10 +147,10 @@ async fn logout(cookies: Cookies) -> impl IntoResponse {
     Redirect::to("/").into_response()
 }
 
-fn verify(cookies: Cookies, key: &impl VerifyingAlgorithm) -> bool {
+fn is_valid(cookies: Cookies, key: &DecodingKey) -> bool {
     if let Some(jwt) = cookies.get(COOKIE_NAME) {
-        let claims: Result<BTreeMap<String, String>, jwt::error::Error> = jwt.value().verify_with_key(key);
-        claims.is_ok() && claims.unwrap()["sub"] == env::var("WAY_SECRET_SUB").unwrap_or_default()
+        let claims = decode::<Claims>(jwt.value(), key, &Validation::new(Algorithm::HS256));
+        claims.is_ok() && claims.unwrap().claims.sub == env::var("WAY_USERNAME").unwrap()
     } else {
         false
     }
