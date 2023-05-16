@@ -35,7 +35,6 @@ For authentication, way uses JWT and sets cookie.
    ```
    WAY_DOMAIN=domain.com
    WAY_SECRET_KEY=secret_string
-   WAY_SECRET_SUB=also_secret_string
    WAY_USERNAME=yourname
    WAY_PASSWORD=password
    ```
