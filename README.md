@@ -31,14 +31,14 @@ For authentication, way uses JWT and sets cookie.
    }
    ```
 
-2. `git clone` this repo, and add `.env`.
+2. `git clone` this repo, and add `./config/.env`.
    ```
    WAY_DOMAIN=domain.com
    WAY_SECRET_KEY=secret_string
    WAY_USERNAME=yourname
    WAY_PASSWORD=password
    ```
-   Optionally you can add `config.yml` and use this app as a simple personal dashboard.
+   Optionally you can add `./config/config.yml` and use this app as a simple personal dashboard.
    ```
    - name: app1
      url: https://app1.domain.com
@@ -47,4 +47,4 @@ For authentication, way uses JWT and sets cookie.
    ```
 
 
-3. `sudo docker run -d --env-file .env --name way -p 9090:9090 $(sudo docker build -q .)`
+3. `sudo docker run -d --env-file ./config/.env -v ./config:/home/way/config --name way -p 9090:9090 $(sudo docker build -q .)`
