@@ -1,6 +1,6 @@
 # WAY
 
-Stupidly simple auth server written in Rust.\
+Stupidly simple auth server & dashboard written in Rust.\
 For authentication, way uses JWT and sets cookie.
 
 ## Deploy
@@ -38,9 +38,13 @@ For authentication, way uses JWT and sets cookie.
    WAY_USERNAME=yourname
    WAY_PASSWORD=password
    ```
+   Optionally you can add `config.yml` and use this app as a simple personal dashboard.
+   ```
+   - name: app1
+     url: https://app1.domain.com
+   - name: app2
+     url: https://app2.domain.com
+   ```
+
 
 3. `sudo docker run -d --env-file .env --name way -p 9090:9090 $(sudo docker build -q .)`
-
-## TODO
-
-- dashboard feature included?

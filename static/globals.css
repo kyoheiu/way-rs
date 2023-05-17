@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,100&display=swap');
 
 body {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: bold;
     background-image: url(./bg.jpg);
     background-color: #666;
     background-size: auto 100vh;
@@ -26,6 +28,45 @@ input::placeholder {
     font-weight: bold;
 }
 
+.title {
+    font-size: 10em;
+    color: #666;
+    text-align: center;
+}
+
+.welcome {
+    font-size: 5em;
+    color: #666;
+    text-align: center;
+    margin-bottom: 0.5em;
+}
+
+.app-link{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.app {
+    color: #666;
+    font-size: 1.5em;
+    width: 75%;
+    max-width: 500px;
+    border: 0px;
+    border-radius: 10px;
+    background-color: #fff;
+    margin: 10px auto;
+}
+
+.app a {
+    text-decoration: none;
+}
+
+.logout-button {
+    text-align: center;
+}
+
 button {
     color: #fff;
     font-family: 'Barlow Condensed', sans-serif;
@@ -36,27 +77,11 @@ button {
     border-radius: 5px;
 }
 
-.welcome {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: bold;
-    font-size: 10em;
-    color: #666;
-    text-align: center;
-}
-
-.logout-button {
-    text-align: center;
-}
-
 .footer {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: bold;
+    font-size: 0.8em;
     color: #666;
-    position: fixed;
-    bottom: 10px;
-    left: 50%;
-    transform: translate(-50%, -50%);
     text-align: center;
+    margin-top: 100px;
 }
 
 a {

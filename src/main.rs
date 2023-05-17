@@ -1,5 +1,3 @@
-mod html;
-
 use axum::debug_handler;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -16,12 +14,14 @@ use std::env;
 use std::sync::Arc;
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 use tower_http::services::ServeDir;
+use tera::{Context, Tera};
 
 const COOKIE_NAME: &str = "way_auth";
 
 struct Core {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
+    templates: Tera
 }
 
 impl Core {
@@ -29,6 +29,7 @@ impl Core {
         Core {
             encoding_key: EncodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
             decoding_key: DecodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
+            templates: Tera::new("templates/*").unwrap()
         }
     }
 }
@@ -43,6 +44,21 @@ struct LogIn {
 struct Claims {
     sub: String,
     exp: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct WayContext {
+    name: String,
+    links: Links
+}
+
+#[derive(Serialize, Deserialize)]
+struct Links(Vec<Link>);
+
+#[derive(Serialize, Deserialize)]
+struct Link {
+    name: String,
+    url: String
 }
 
 #[tokio::main]
@@ -73,13 +89,21 @@ async fn health() -> Html<&'static str> {
 }
 
 #[debug_handler]
-async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<&'static str> {
+async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<String> {
     if is_valid(cookies, &core.decoding_key) {
         println!("logged in");
-        Html(html::VERIFIED)
+        let config = std::fs::read_to_string("config.yml").unwrap();
+        let links: Links = serde_yaml::from_str(&config).unwrap();
+        let context = WayContext {
+            name: env::var("WAY_USERNAME").unwrap(),
+            links
+        };
+        Html(core.templates.render("verified.html", &Context::from_serialize(&context).unwrap()).unwrap())
+
     } else {
         println!("not verified");
-        Html(html::INDEX)
+        let context = Context::new();
+        Html(core.templates.render("index.html", &context).unwrap())
     }
 }
 
