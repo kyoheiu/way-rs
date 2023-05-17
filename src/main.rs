@@ -1,3 +1,5 @@
+mod html;
+
 use axum::debug_handler;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -13,9 +15,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::sync::Arc;
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
-use tower_http::{
-    services::{ServeDir, ServeFile},
-};
+use tower_http::services::ServeDir;
 
 const COOKIE_NAME: &str = "way_auth";
 
@@ -42,7 +42,7 @@ struct LogIn {
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     sub: String,
-    exp: usize
+    exp: usize,
 }
 
 #[tokio::main]
@@ -73,15 +73,13 @@ async fn health() -> Html<&'static str> {
 }
 
 #[debug_handler]
-async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<String> {
+async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<&'static str> {
     if is_valid(cookies, &core.decoding_key) {
         println!("logged in");
-        let html = std::fs::read_to_string("static/verified.html").unwrap();
-        Html(html)
+        Html(html::VERIFIED)
     } else {
         println!("not verified");
-        let html = std::fs::read_to_string("static/index.html").unwrap();
-        Html(html)
+        Html(html::INDEX)
     }
 }
 
@@ -113,7 +111,7 @@ async fn login(
     {
         let my_claims = Claims {
             sub: env::var("WAY_USERNAME").unwrap(),
-            exp: 2000000000
+            exp: 2000000000,
         };
         let token = encode(&Header::default(), &my_claims, &core.encoding_key).unwrap();
         let cookie = Cookie::build(COOKIE_NAME, token)
