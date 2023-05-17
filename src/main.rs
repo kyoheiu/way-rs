@@ -92,14 +92,43 @@ async fn health() -> Html<&'static str> {
 async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<String> {
     if is_valid(cookies, &core.decoding_key) {
         println!("logged in");
-        let config = std::fs::read_to_string("config.yml").unwrap();
-        let links: Links = serde_yaml::from_str(&config).unwrap();
-        let context = WayContext {
-            name: env::var("WAY_USERNAME").unwrap(),
-            links
-        };
-        Html(core.templates.render("verified.html", &Context::from_serialize(&context).unwrap()).unwrap())
-
+        if let Ok(config) = std::fs::read_to_string("config/config.yml") {
+            let links: Result<Links, _> = serde_yaml::from_str(&config);
+            match links {
+                Ok(links) => {
+                    let context = WayContext {
+                        name: env::var("WAY_USERNAME").unwrap(),
+                        links,
+                    };
+                    Html(
+                        core.templates
+                            .render("verified.html", &Context::from_serialize(&context).unwrap())
+                            .unwrap(),
+                    )
+                }
+                Err(_) => {
+                    let context = WayContext {
+                        name: env::var("WAY_USERNAME").unwrap(),
+                        links: Links(vec![]),
+                    };
+                    Html(
+                        core.templates
+                            .render("verified.html", &Context::from_serialize(&context).unwrap())
+                            .unwrap(),
+                    )
+                }
+            }
+        } else {
+            let context = WayContext {
+                name: env::var("WAY_USERNAME").unwrap(),
+                links: Links(vec![]),
+            };
+            Html(
+                core.templates
+                    .render("verified.html", &Context::from_serialize(&context).unwrap())
+                    .unwrap(),
+            )
+        }
     } else {
         println!("not verified");
         let context = Context::new();
