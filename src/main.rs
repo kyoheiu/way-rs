@@ -12,16 +12,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::env;
 use std::sync::Arc;
+use tera::{Context, Tera};
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 use tower_http::services::ServeDir;
-use tera::{Context, Tera};
 
 const COOKIE_NAME: &str = "way_auth";
 
 struct Core {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
-    templates: Tera
+    templates: Tera,
 }
 
 impl Core {
@@ -29,7 +29,7 @@ impl Core {
         Core {
             encoding_key: EncodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
             decoding_key: DecodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
-            templates: Tera::new("templates/*").unwrap()
+            templates: Tera::new("templates/*").unwrap(),
         }
     }
 }
@@ -49,7 +49,7 @@ struct Claims {
 #[derive(Serialize, Deserialize)]
 struct WayContext {
     name: String,
-    links: Links
+    links: Links,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -58,7 +58,7 @@ struct Links(Vec<Link>);
 #[derive(Serialize, Deserialize)]
 struct Link {
     name: String,
-    url: String
+    url: String,
 }
 
 #[tokio::main]
