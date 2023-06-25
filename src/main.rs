@@ -1,3 +1,5 @@
+mod error;
+
 use axum::debug_handler;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -7,6 +9,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use error::Error;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -25,12 +28,12 @@ struct Core {
 }
 
 impl Core {
-    fn default() -> Self {
-        Core {
-            encoding_key: EncodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
-            decoding_key: DecodingKey::from_secret(env::var("WAY_SECRET_KEY").unwrap().as_bytes()),
-            templates: Tera::new("templates/*").unwrap(),
-        }
+    fn default() -> Result<Self, Error> {
+        Ok(Core {
+            encoding_key: EncodingKey::from_secret(env::var("WAY_SECRET_KEY")?.as_bytes()),
+            decoding_key: DecodingKey::from_secret(env::var("WAY_SECRET_KEY")?.as_bytes()),
+            templates: Tera::new("templates/*")?,
+        })
     }
 }
 
@@ -62,15 +65,15 @@ struct Link {
 }
 
 #[tokio::main]
-async fn main() {
-    let core = Arc::new(Core::default());
+async fn main() -> Result<(), Error> {
+    let core = Arc::new(Core::default()?);
 
     // build our application with a single route
     let app = Router::new()
         .route("/", get(index))
         .route("/health", get(health))
         .route("/api/auth", get(auth))
-        .route("/api/login", post(login))
+        .route("/api/ldaplogin", post(ldaplogin))
         .route("/api/logout", get(logout))
         .layer(CookieManagerLayer::new())
         .nest_service("/static", ServeDir::new("static"))
@@ -81,6 +84,7 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+    Ok(())
 }
 
 #[debug_handler]
@@ -89,50 +93,44 @@ async fn health() -> Html<&'static str> {
 }
 
 #[debug_handler]
-async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Html<String> {
-    if is_valid(cookies, &core.decoding_key) {
+async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Result<Html<String>, Error> {
+    if let Ok(name) = is_valid(cookies, &core.decoding_key) {
         println!("logged in");
         if let Ok(config) = std::fs::read_to_string("config/config.yml") {
             let links: Result<Links, _> = serde_yaml::from_str(&config);
             match links {
                 Ok(links) => {
-                    let context = WayContext {
-                        name: env::var("WAY_USERNAME").unwrap(),
-                        links,
-                    };
-                    Html(
-                        core.templates
-                            .render("verified.html", &Context::from_serialize(&context).unwrap())
-                            .unwrap(),
-                    )
+                    let context = WayContext { name, links };
+                    Ok(Html(core.templates.render(
+                        "verified.html",
+                        &Context::from_serialize(context)?,
+                    )?))
                 }
                 Err(_) => {
                     let context = WayContext {
-                        name: env::var("WAY_USERNAME").unwrap(),
+                        name,
                         links: Links(vec![]),
                     };
-                    Html(
-                        core.templates
-                            .render("verified.html", &Context::from_serialize(&context).unwrap())
-                            .unwrap(),
-                    )
+                    Ok(Html(core.templates.render(
+                        "verified.html",
+                        &Context::from_serialize(context)?,
+                    )?))
                 }
             }
         } else {
             let context = WayContext {
-                name: env::var("WAY_USERNAME").unwrap(),
+                name,
                 links: Links(vec![]),
             };
-            Html(
-                core.templates
-                    .render("verified.html", &Context::from_serialize(&context).unwrap())
-                    .unwrap(),
-            )
+            Ok(Html(core.templates.render(
+                "verified.html",
+                &Context::from_serialize(context)?,
+            )?))
         }
     } else {
         println!("not verified");
         let context = Context::new();
-        Html(core.templates.render("index.html", &context).unwrap())
+        Ok(Html(core.templates.render("index.html", &context)?))
     }
 }
 
@@ -142,7 +140,7 @@ async fn auth(
     cookies: Cookies,
     State(core): State<Arc<Core>>,
 ) -> impl IntoResponse {
-    if is_valid(cookies, &core.decoding_key) {
+    if let Ok(_name) = is_valid(cookies, &core.decoding_key) {
         (StatusCode::OK, "Verified").into_response()
     } else {
         let rf = params.get("ref").unwrap();
@@ -150,25 +148,62 @@ async fn auth(
     }
 }
 
+// #[debug_handler]
+// async fn login(
+//     Query(params): Query<BTreeMap<String, String>>,
+//     cookies: Cookies,
+//     State(core): State<Arc<Core>>,
+//     Form(log_in): Form<LogIn>,
+// ) -> impl IntoResponse {
+//     let username = log_in.username.trim();
+//     let password = log_in.password.trim();
+//     if username == env::var("WAY_USERNAME").unwrap().trim()
+//         && password == env::var("WAY_PASSWORD").unwrap().trim()
+//     {
+//         let my_claims = Claims {
+//             sub: env::var("WAY_USERNAME").unwrap(),
+//             exp: 2000000000,
+//         };
+//         let token = encode(&Header::default(), &my_claims, &core.encoding_key).unwrap();
+//         let cookie = Cookie::build(COOKIE_NAME, token)
+//             .domain(env::var("WAY_DOMAIN").unwrap())
+//             .path("/")
+//             .max_age(cookie::time::Duration::days(7))
+//             .secure(true)
+//             .http_only(true)
+//             .finish();
+//         cookies.add(cookie);
+//
+//         if let Some(rf) = params.get("ref") {
+//             Redirect::to(rf).into_response()
+//         } else {
+//             Redirect::to("/").into_response()
+//         }
+//     } else {
+//         Redirect::to("/").into_response()
+//     }
+// }
+
 #[debug_handler]
-async fn login(
+async fn ldaplogin(
     Query(params): Query<BTreeMap<String, String>>,
     cookies: Cookies,
     State(core): State<Arc<Core>>,
     Form(log_in): Form<LogIn>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, Error> {
     let username = log_in.username.trim();
     let password = log_in.password.trim();
-    if username == env::var("WAY_USERNAME").unwrap().trim()
-        && password == env::var("WAY_PASSWORD").unwrap().trim()
-    {
+    let (con, mut ldap) = ldap3::LdapConnAsync::new("ldap://localhost:3890").await?;
+    ldap3::drive!(con);
+    if let Ok(_result) = ldap.simple_bind(username, password).await?.success() {
+        println!("{:#?}", _result);
         let my_claims = Claims {
-            sub: env::var("WAY_USERNAME").unwrap(),
+            sub: username.to_string(),
             exp: 2000000000,
         };
-        let token = encode(&Header::default(), &my_claims, &core.encoding_key).unwrap();
+        let token = encode(&Header::default(), &my_claims, &core.encoding_key)?;
         let cookie = Cookie::build(COOKIE_NAME, token)
-            .domain(env::var("WAY_DOMAIN").unwrap())
+            .domain(env::var("WAY_DOMAIN")?)
             .path("/")
             .max_age(cookie::time::Duration::days(7))
             .secure(true)
@@ -177,20 +212,20 @@ async fn login(
         cookies.add(cookie);
 
         if let Some(rf) = params.get("ref") {
-            Redirect::to(rf).into_response()
+            Ok(Redirect::to(rf).into_response())
         } else {
-            Redirect::to("/").into_response()
+            Ok(Redirect::to("/").into_response())
         }
     } else {
-        Redirect::to("/").into_response()
+        Ok(Redirect::to("/").into_response())
     }
 }
 
 #[debug_handler]
-async fn logout(cookies: Cookies) -> impl IntoResponse {
+async fn logout(cookies: Cookies) -> Result<impl IntoResponse, Error> {
     if cookies.get(COOKIE_NAME).is_some() {
         let cookie = Cookie::build(COOKIE_NAME, "")
-            .domain(env::var("WAY_DOMAIN").unwrap())
+            .domain(env::var("WAY_DOMAIN")?)
             .path("/")
             .max_age(cookie::time::Duration::seconds(0))
             .secure(true)
@@ -199,14 +234,18 @@ async fn logout(cookies: Cookies) -> impl IntoResponse {
         cookies.add(cookie);
         println!("cookie removed");
     }
-    Redirect::to("/").into_response()
+    Ok(Redirect::to("/").into_response())
 }
 
-fn is_valid(cookies: Cookies, key: &DecodingKey) -> bool {
+fn is_valid(cookies: Cookies, key: &DecodingKey) -> Result<String, Error> {
     if let Some(jwt) = cookies.get(COOKIE_NAME) {
         let claims = decode::<Claims>(jwt.value(), key, &Validation::new(Algorithm::HS256));
-        claims.is_ok() && claims.unwrap().claims.sub == env::var("WAY_USERNAME").unwrap()
+        if let Ok(claims) = claims {
+            Ok(claims.claims.sub)
+        } else {
+            Err(Error::Io("error".to_string()))
+        }
     } else {
-        false
+        Err(Error::Io("error".to_string()))
     }
 }
