@@ -1,5 +1,7 @@
 # WAY
 
+![screenshot.png](screenshot.png)
+
 Simple auth server & dashboard written in Rust.\
 This app works as the bridge between proxy server and LDAP server, using JWT cookie.
 
