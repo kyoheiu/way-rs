@@ -1,6 +1,6 @@
 # WAY
 
-Stupidly simple auth server & dashboard written in Rust.\
+Simple auth server & dashboard written in Rust.\
 This app works as the bridge between proxy server and LDAP server, using JWT cookie.
 
 ## Prerequisites
@@ -52,4 +52,4 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
      url: https://app2.domain.com
    ```
 
-3. `sudo docker run -d --env-file ./config/.env -v ./config:/home/way/config --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.2.0
+3. `sudo docker run -d --env-file ./config/.env -v ./config:/home/way/config --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.2.0`
