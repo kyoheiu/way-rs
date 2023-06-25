@@ -193,7 +193,7 @@ async fn ldaplogin(
 ) -> Result<impl IntoResponse, Error> {
     let username = log_in.username.trim();
     let password = log_in.password.trim();
-    let (con, mut ldap) = ldap3::LdapConnAsync::new("ldap://localhost:3890").await?;
+    let (con, mut ldap) = ldap3::LdapConnAsync::new(&format!("ldap://{}:3890", env::var("WAY_NETWORK")?)).await?;
     ldap3::drive!(con);
     if let Ok(_result) = ldap.simple_bind(username, password).await?.success() {
         println!("{:#?}", _result);
