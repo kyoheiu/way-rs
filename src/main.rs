@@ -79,7 +79,6 @@ async fn main() -> Result<(), Error> {
         .nest_service("/static", ServeDir::new("static"))
         .with_state(core);
 
-    // run it with hyper on localhost:3000
     axum::Server::bind(&"0.0.0.0:9090".parse().unwrap())
         .serve(app.into_make_service())
         .await
@@ -148,42 +147,6 @@ async fn auth(
     }
 }
 
-// #[debug_handler]
-// async fn login(
-//     Query(params): Query<BTreeMap<String, String>>,
-//     cookies: Cookies,
-//     State(core): State<Arc<Core>>,
-//     Form(log_in): Form<LogIn>,
-// ) -> impl IntoResponse {
-//     let username = log_in.username.trim();
-//     let password = log_in.password.trim();
-//     if username == env::var("WAY_USERNAME").unwrap().trim()
-//         && password == env::var("WAY_PASSWORD").unwrap().trim()
-//     {
-//         let my_claims = Claims {
-//             sub: env::var("WAY_USERNAME").unwrap(),
-//             exp: 2000000000,
-//         };
-//         let token = encode(&Header::default(), &my_claims, &core.encoding_key).unwrap();
-//         let cookie = Cookie::build(COOKIE_NAME, token)
-//             .domain(env::var("WAY_DOMAIN").unwrap())
-//             .path("/")
-//             .max_age(cookie::time::Duration::days(7))
-//             .secure(true)
-//             .http_only(true)
-//             .finish();
-//         cookies.add(cookie);
-//
-//         if let Some(rf) = params.get("ref") {
-//             Redirect::to(rf).into_response()
-//         } else {
-//             Redirect::to("/").into_response()
-//         }
-//     } else {
-//         Redirect::to("/").into_response()
-//     }
-// }
-
 #[debug_handler]
 async fn ldaplogin(
     Query(params): Query<BTreeMap<String, String>>,
@@ -193,7 +156,7 @@ async fn ldaplogin(
 ) -> Result<impl IntoResponse, Error> {
     let username = log_in.username.trim();
     let password = log_in.password.trim();
-    let (con, mut ldap) = ldap3::LdapConnAsync::new(&format!("ldap://{}:3890", env::var("WAY_NETWORK")?)).await?;
+    let (con, mut ldap) = ldap3::LdapConnAsync::new(&format!("{}", env::var("WAY_NETWORK")?)).await?;
     ldap3::drive!(con);
     if let Ok(_result) = ldap.simple_bind(username, password).await?.success() {
         println!("{:#?}", _result);
