@@ -1651,7 +1651,7 @@ checksum = "ed9d5b4305409d1fc9482fee2d7f9bcbf24b3972bf59817ef757e23982242a93"
 
 [[package]]
 name = "way"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "cookie",
