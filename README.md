@@ -11,6 +11,8 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
 
 ## Deploy
 
+***Pretend that `way` is hosted in `way.domain.com` and the other apps in `app.domain.com`.***
+
 1. `git clone` this repo, and add `./config/.env`.
    ```
    WAY_DOMAIN=domain.com
@@ -28,7 +30,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
      url: https://app2.domain.com
    ```
 
-2. `sudo docker run -d --env-file ./config/.env -v ./config:/home/way/config --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.2.0`
+2. `sudo docker run -d --env-file ./config/.env -v ./config:/home/way/config --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.2.1`
 
 3. Set your reverse proxy properly.
    ```
@@ -52,6 +54,6 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
 
    location @auth_failed {
        # Add ref param to redirect after logging in
-       return 302 https://auth.domain.com?ref=$scheme://$http_host$request_uri;
+       return 302 https://way.domain.com?ref=$scheme://$http_host$request_uri;
    }
    ```
