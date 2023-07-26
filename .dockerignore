@@ -1,2 +1,6 @@
 /target
-/config
+/static
+.env
+config.yml
+./svelte/node_modules
+./svelte/dist

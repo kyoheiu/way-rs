@@ -1,21 +1,19 @@
 mod error;
 
-use axum::debug_handler;
-use axum::extract::{Query, State};
+use axum::extract::State;
 use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Redirect};
-use axum::Form;
+use axum::response::{IntoResponse, Redirect};
+use axum::{debug_handler, Json};
 use axum::{
     routing::{get, post},
     Router,
 };
+use cookie::SameSite;
 use error::Error;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::env;
 use std::sync::Arc;
-use tera::{Context, Tera};
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 use tower_http::services::ServeDir;
 
@@ -24,7 +22,6 @@ const COOKIE_NAME: &str = "way_auth";
 struct Core {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
-    templates: Tera,
 }
 
 impl Core {
@@ -32,15 +29,15 @@ impl Core {
         Ok(Core {
             encoding_key: EncodingKey::from_secret(env::var("WAY_SECRET_KEY")?.as_bytes()),
             decoding_key: DecodingKey::from_secret(env::var("WAY_SECRET_KEY")?.as_bytes()),
-            templates: Tera::new("templates/*")?,
         })
     }
 }
 
 #[derive(Deserialize)]
 struct LogIn {
-    username: String,
-    password: String,
+    dn: String,
+    passwd: String,
+    rf: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -50,13 +47,10 @@ struct Claims {
 }
 
 #[derive(Serialize, Deserialize)]
-struct WayContext {
-    name: String,
-    links: Links,
+struct Links {
+    links: Vec<Link>,
+    rf: Option<String>
 }
-
-#[derive(Serialize, Deserialize)]
-struct Links(Vec<Link>);
 
 #[derive(Serialize, Deserialize)]
 struct Link {
@@ -70,13 +64,12 @@ async fn main() -> Result<(), Error> {
 
     // build our application with a single route
     let app = Router::new()
-        .route("/", get(index))
         .route("/health", get(health))
-        .route("/api/auth", get(auth))
-        .route("/api/ldaplogin", post(ldaplogin))
+        .route("/api/auth", post(auth))
+        .route("/api/login", post(login))
         .route("/api/logout", get(logout))
         .layer(CookieManagerLayer::new())
-        .nest_service("/static", ServeDir::new("static"))
+        .nest_service("/", ServeDir::new("static"))
         .with_state(core);
 
     axum::Server::bind(&"0.0.0.0:9090".parse().unwrap())
@@ -87,76 +80,55 @@ async fn main() -> Result<(), Error> {
 }
 
 #[debug_handler]
-async fn health() -> Html<&'static str> {
-    Html("Hello, developer.")
+async fn health() -> Result<String, Error> {
+    let mut result = String::new();
+    let env = [
+        env::var("WAY_SECRET_KEY"),
+        env::var("WAY_NETWORK"),
+        env::var("WAY_DOMAIN"),
+    ];
+    if env.iter().any(|x| x.is_err()) {
+        result.push_str("(1/2) 🚨 Not all environment variables are set correctly.");
+    } else {
+        result.push_str("(1/2) 👍 Found all environment variables.");
+    }
+    result.push('\n');
+
+    if let Err(_con) = ldap3::LdapConnAsync::new(&env::var("WAY_NETWORK")?.to_string()).await {
+        result.push_str("(2/2) 🚨 Failed to connect to LDAP server: Check your `WAY_NETWORK` env variable or state of LDAP server.")
+    } else {
+        result.push_str("(2/2) 👍 Succeeded to connect to LDAP server.");
+    }
+
+    Ok(result)
 }
 
 #[debug_handler]
-async fn index(cookies: Cookies, State(core): State<Arc<Core>>) -> Result<Html<String>, Error> {
-    if let Ok(name) = is_valid(cookies, &core.decoding_key) {
-        println!("logged in");
-        if let Ok(config) = std::fs::read_to_string("config/config.yml") {
+async fn auth(cookies: Cookies, State(core): State<Arc<Core>>) -> impl IntoResponse {
+    if let Ok(_name) = is_valid(cookies, &core.decoding_key) {
+        if let Ok(config) = std::fs::read_to_string("config.yml") {
             let links: Result<Links, _> = serde_yaml::from_str(&config);
             match links {
-                Ok(links) => {
-                    let context = WayContext { name, links };
-                    Ok(Html(core.templates.render(
-                        "verified.html",
-                        &Context::from_serialize(context)?,
-                    )?))
-                }
-                Err(_) => {
-                    let context = WayContext {
-                        name,
-                        links: Links(vec![]),
-                    };
-                    Ok(Html(core.templates.render(
-                        "verified.html",
-                        &Context::from_serialize(context)?,
-                    )?))
-                }
+                Ok(links) => Json(links).into_response(),
+                Err(_) => StatusCode::OK.into_response(),
             }
         } else {
-            let context = WayContext {
-                name,
-                links: Links(vec![]),
-            };
-            Ok(Html(core.templates.render(
-                "verified.html",
-                &Context::from_serialize(context)?,
-            )?))
+            StatusCode::OK.into_response()
         }
     } else {
-        println!("not verified");
-        let context = Context::new();
-        Ok(Html(core.templates.render("index.html", &context)?))
+        (StatusCode::FORBIDDEN).into_response()
     }
 }
 
 #[debug_handler]
-async fn auth(
-    Query(params): Query<BTreeMap<String, String>>,
+async fn login(
     cookies: Cookies,
     State(core): State<Arc<Core>>,
-) -> impl IntoResponse {
-    if let Ok(_name) = is_valid(cookies, &core.decoding_key) {
-        (StatusCode::OK, "Verified").into_response()
-    } else {
-        let rf = params.get("ref").unwrap();
-        Redirect::to(&format!("/?ref={}", rf)).into_response()
-    }
-}
-
-#[debug_handler]
-async fn ldaplogin(
-    Query(params): Query<BTreeMap<String, String>>,
-    cookies: Cookies,
-    State(core): State<Arc<Core>>,
-    Form(log_in): Form<LogIn>,
+    Json(log_in): Json<LogIn>,
 ) -> Result<impl IntoResponse, Error> {
-    let username = log_in.username.trim();
-    let password = log_in.password.trim();
-    let (con, mut ldap) = ldap3::LdapConnAsync::new(&format!("{}", env::var("WAY_NETWORK")?)).await?;
+    let username = log_in.dn.trim();
+    let password = &log_in.passwd.trim();
+    let (con, mut ldap) = ldap3::LdapConnAsync::new(&env::var("WAY_NETWORK")?.to_string()).await?;
     ldap3::drive!(con);
     if let Ok(_result) = ldap.simple_bind(username, password).await?.success() {
         println!("{:#?}", _result);
@@ -169,18 +141,26 @@ async fn ldaplogin(
             .domain(env::var("WAY_DOMAIN")?)
             .path("/")
             .max_age(cookie::time::Duration::days(7))
+            .same_site(SameSite::Lax)
             .secure(true)
             .http_only(true)
             .finish();
         cookies.add(cookie);
 
-        if let Some(rf) = params.get("ref") {
-            Ok(Redirect::to(rf).into_response())
+        if let Ok(config) = std::fs::read_to_string("config.yml") {
+            let links: Result<Vec<Link>, _> = serde_yaml::from_str(&config);
+            match links {
+                Ok(links) => Ok(Json(Links {
+                    links,
+                    rf: log_in.rf
+                }).into_response()),
+                Err(_) => Ok(StatusCode::OK.into_response()),
+            }
         } else {
-            Ok(Redirect::to("/").into_response())
+            Ok(StatusCode::OK.into_response())
         }
     } else {
-        Ok(Redirect::to("/").into_response())
+        Ok(StatusCode::FORBIDDEN.into_response())
     }
 }
 
@@ -191,6 +171,7 @@ async fn logout(cookies: Cookies) -> Result<impl IntoResponse, Error> {
             .domain(env::var("WAY_DOMAIN")?)
             .path("/")
             .max_age(cookie::time::Duration::seconds(0))
+            .same_site(SameSite::Lax)
             .secure(true)
             .http_only(true)
             .finish();

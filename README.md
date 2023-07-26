@@ -2,7 +2,7 @@
 
 ![screenshot.png](screenshot.png)
 
-Simple auth server & dashboard written in Rust.\
+Simple auth server & dashboard written in axum & svelte.\
 This app works as the bridge between proxy server and LDAP server, using JWT cookie.
 
 ## Prerequisites
@@ -20,7 +20,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
    WAY_NETWORK=ldap://ldap_server_name:3890
    ```
 
-   Optionally you can add `config/config.yml` and use this app as a simple
+   Optionally you can add `config.yml` and use this app as a simple
    personal dashboard.
 
    ```
@@ -30,7 +30,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
      url: https://app2.domain.com
    ```
 
-2. `sudo docker run -d --env-file /path/to/.env -v /path/to/config:/home/way/config --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.2.1`
+2. `sudo docker run -d --env-file /path/to/.env -v /path/to/config.yml:/app/config.yml --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.3.0`
 
 3. Set your reverse proxy properly.
    ```
@@ -56,4 +56,9 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
        # Add ref param to redirect after logging in
        return 302 https://way.domain.com?ref=$scheme://$http_host$request_uri;
    }
+   ```
+
+   ```sh
+    # health check
+    curl http://127.0.0.1:9090/health
    ```
