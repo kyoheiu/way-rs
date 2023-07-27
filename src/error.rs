@@ -9,6 +9,7 @@ pub enum Error {
     Env(String),
     Ldap(String),
     Jwt(String),
+    Login,
 }
 
 impl std::error::Error for Error {}
@@ -20,6 +21,7 @@ impl std::fmt::Display for Error {
             Error::Env(s) => s,
             Error::Ldap(s) => s,
             Error::Jwt(s) => s,
+            Error::Login => "Login failed.",
         };
         write!(f, "{}", printable)
     }
@@ -56,6 +58,7 @@ impl IntoResponse for Error {
             Error::Env(s) => s,
             Error::Ldap(s) => s,
             Error::Jwt(s) => s,
+            Error::Login => "Login failed.".to_string(),
         };
         (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
     }

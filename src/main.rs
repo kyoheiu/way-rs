@@ -1,6 +1,6 @@
 mod error;
 
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
 use axum::{debug_handler, Json};
@@ -37,7 +37,7 @@ impl Core {
 struct LogIn {
     dn: String,
     passwd: String,
-    rf: Option<String>
+    redirect: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,9 +47,9 @@ struct Claims {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Links {
-    links: Vec<Link>,
-    rf: Option<String>
+struct Res {
+    links: Option<Vec<Link>>,
+    redirect: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -65,9 +65,9 @@ async fn main() -> Result<(), Error> {
     // build our application with a single route
     let app = Router::new()
         .route("/health", get(health))
-        .route("/api/auth", post(auth))
+        .route("/api/auth", get(auth))
         .route("/api/login", post(login))
-        .route("/api/logout", get(logout))
+        .route("/api/logout", post(logout))
         .layer(CookieManagerLayer::new())
         .nest_service("/", ServeDir::new("static"))
         .with_state(core);
@@ -104,19 +104,39 @@ async fn health() -> Result<String, Error> {
 }
 
 #[debug_handler]
-async fn auth(cookies: Cookies, State(core): State<Arc<Core>>) -> impl IntoResponse {
+async fn auth(
+    Query(params): Query<std::collections::BTreeMap<String, String>>,
+    cookies: Cookies,
+    State(core): State<Arc<Core>>,
+) -> impl IntoResponse {
     if let Ok(_name) = is_valid(cookies, &core.decoding_key) {
         if let Ok(config) = std::fs::read_to_string("config.yml") {
-            let links: Result<Links, _> = serde_yaml::from_str(&config);
+            let links: Result<Vec<Link>, _> = serde_yaml::from_str(&config);
             match links {
-                Ok(links) => Json(links).into_response(),
-                Err(_) => StatusCode::OK.into_response(),
+                Ok(links) => Json(Res {
+                    links: Some(links),
+                    redirect: false,
+                })
+                .into_response(),
+                Err(_) => Json(Res {
+                    links: None,
+                    redirect: false,
+                })
+                .into_response(),
             }
         } else {
-            StatusCode::OK.into_response()
+            Json(Res {
+                links: None,
+                redirect: false,
+            })
+            .into_response()
         }
     } else {
-        (StatusCode::FORBIDDEN).into_response()
+        if let Some(rf) = params.get("ref") {
+            Redirect::to(&format!("/?ref={}", rf)).into_response()
+        } else {
+            Redirect::to("/").into_response()
+        }
     }
 }
 
@@ -141,7 +161,7 @@ async fn login(
             .domain(env::var("WAY_DOMAIN")?)
             .path("/")
             .max_age(cookie::time::Duration::days(7))
-            .same_site(SameSite::Lax)
+            .same_site(SameSite::None)
             .secure(true)
             .http_only(true)
             .finish();
@@ -150,17 +170,26 @@ async fn login(
         if let Ok(config) = std::fs::read_to_string("config.yml") {
             let links: Result<Vec<Link>, _> = serde_yaml::from_str(&config);
             match links {
-                Ok(links) => Ok(Json(Links {
-                    links,
-                    rf: log_in.rf
-                }).into_response()),
-                Err(_) => Ok(StatusCode::OK.into_response()),
+                Ok(links) => Ok(Json(Res {
+                    links: Some(links),
+                    redirect: log_in.redirect,
+                })
+                .into_response()),
+                Err(_) => Ok(Json(Res {
+                    links: None,
+                    redirect: log_in.redirect,
+                })
+                .into_response()),
             }
         } else {
-            Ok(StatusCode::OK.into_response())
+            Ok(Json(Res {
+                links: None,
+                redirect: log_in.redirect,
+            })
+            .into_response())
         }
     } else {
-        Ok(StatusCode::FORBIDDEN.into_response())
+        Err(Error::Login)
     }
 }
 
@@ -171,14 +200,14 @@ async fn logout(cookies: Cookies) -> Result<impl IntoResponse, Error> {
             .domain(env::var("WAY_DOMAIN")?)
             .path("/")
             .max_age(cookie::time::Duration::seconds(0))
-            .same_site(SameSite::Lax)
+            .same_site(SameSite::None)
             .secure(true)
             .http_only(true)
             .finish();
         cookies.add(cookie);
         println!("cookie removed");
     }
-    Ok(Redirect::to("/").into_response())
+    Ok(StatusCode::OK)
 }
 
 fn is_valid(cookies: Cookies, key: &DecodingKey) -> Result<String, Error> {

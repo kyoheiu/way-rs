@@ -7,9 +7,9 @@
     LoggedIn,
   }
 
-  interface Links {
-    links: Link[],
-    rf: string | null
+  interface Res {
+    links: Link[] | null;
+    redirect: boolean;
   }
 
   interface Link {
@@ -23,22 +23,17 @@
   let ref: string | null = new URL(window.location.href).searchParams.get(
     "ref"
   );
-  console.log(ref);
   let links: Link[];
 
   onMount(async () => {
-    const res = await fetch("/api/auth", {
-      method: "POST",
-    });
+    const res = await fetch("/api/auth");
     if (res.ok) {
-      if (ref) {
+      const j: Res = await res.json();
+      if (j.redirect) {
         window.location.href = ref;
       } else {
+        links = j.links;
         state = State.LoggedIn;
-        const j: Link[] | null = await res.json();
-        if (j) {
-          links = j;
-        }
       }
     } else {
       state = State.NotVerified;
@@ -54,19 +49,25 @@
       body: JSON.stringify({
         dn: dn,
         passwd: passwd,
-        rf: ref
+        redirect: ref ? true : false,
       }),
     });
     if (res.ok) {
-      state = State.LoggedIn;
-      const j: Links | null = await res.json();
-      if (j) {
+      const j: Res = await res.json();
+      if (j.redirect) {
+        window.location.href = ref;
+      } else {
         links = j.links;
-        if (j.rf) {
-          window.location.href = j.rf;
-        }
+        state = State.LoggedIn;
       }
     }
+  };
+
+  const logout = async () => {
+    const _res = await fetch("/api/logout", {
+      method: "POST",
+    });
+    state = State.NotVerified;
   };
 </script>
 
@@ -109,7 +110,7 @@
 {:else}
   <main class="mt-32">
     <div class="flex flex-col items-center">
-      <div class="text-3xl">How's it going?</div>
+      <div class="text-3xl">WAY</div>
       <div class="mb-4 mt-2 text-sm text-stone-400">
         <a href="https://git.sr.ht/~kyoheiu/way-rs" target="_blank"
           >way v0.3.0</a
@@ -126,9 +127,9 @@
           {/each}
         {/if}
       </div>
-      <a href="/api/logout">
-        <button class="mt-6 bg-slate-600"> &nbsp;BYE&nbsp; </button>
-      </a>
+      <button class="mt-6 bg-slate-600" on:click={() => logout()}>
+        &nbsp;BYE&nbsp;
+      </button>
     </div>
   </main>
 {/if}
