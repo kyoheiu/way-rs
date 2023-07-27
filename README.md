@@ -11,7 +11,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
 
 ## Deploy
 
-***Pretend that `way` is hosted in `way.domain.com` and the other apps in `app.domain.com`.***
+***Pretend that `way` is hosted in `way.domain.com` and the other apps in `app*.domain.com`.***
 
 1. Prepare `.env`.
    ```
@@ -20,7 +20,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
    WAY_NETWORK=ldap://ldap_server_name:3890
    ```
 
-   Optionally you can add `config.yml` and use this app as a simple
+   Optionally you can create `config.yml` and use this app as a simple
    personal dashboard.
 
    ```
@@ -59,6 +59,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
    ```
 
    ```sh
-    # health check
-    curl http://127.0.0.1:9090/health
+   # health check
+   # ensures env variables are all set and LDAP server can be connected
+   curl http://127.0.0.1:9090/health
    ```
