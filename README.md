@@ -32,6 +32,12 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
 
 2. `sudo docker run -d --env-file /path/to/.env -v /path/to/config.yml:/app/config.yml --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.3.0`
 
+   ```sh
+   # health check
+   # ensures env variables are all set and LDAP server can be connected
+   curl http://127.0.0.1:9090/health
+   ```
+
 3. Set your reverse proxy properly.
    ```
    # e.g. nginx auth_request setting
@@ -56,10 +62,4 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
        # Add ref param to redirect after logging in
        return 302 https://way.domain.com?ref=$scheme://$http_host$request_uri;
    }
-   ```
-
-   ```sh
-   # health check
-   # ensures env variables are all set and LDAP server can be connected
-   curl http://127.0.0.1:9090/health
    ```
