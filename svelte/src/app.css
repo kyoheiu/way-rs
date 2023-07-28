@@ -2,13 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 @font-face {
-  font-family: 'scientifica';
-  src: URL('./font/scientifica.ttf') format('truetype');
+  font-family: 'Proto';
+  src: URL('./font/0xProto-Regular.ttf') format('truetype');
 }
 
 @layer base {
   body {
     @apply w-4/5 max-w-sm m-auto text-stone-200 bg-stone-800;
-    font-family: scientifica;
+    font-family: "Proto";
   }
 }
