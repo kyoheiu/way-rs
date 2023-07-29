@@ -30,7 +30,7 @@ This app works as the bridge between proxy server and LDAP server, using JWT coo
      url: https://app2.domain.com
    ```
 
-2. `sudo docker run -d --env-file /path/to/.env -v /path/to/config.yml:/app/config.yml --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.3.0`
+2. `sudo docker run -d --env-file /path/to/.env -v /path/to/config.yml:/app/config.yml --network="ldap_server_name" --name way -p 9090:9090 kyoheiudev/way-rs:0.3.1`
 
    ```sh
    # health check
