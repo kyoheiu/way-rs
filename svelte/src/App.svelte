@@ -17,6 +17,7 @@
     url: string;
   }
 
+  let ver = "v0.3.1";
   let state = State.NotVerified;
   let dn: string;
   let passwd: string;
@@ -76,28 +77,24 @@
     <div class="flex flex-col items-center">
       <div class="text-3xl">WAY</div>
       <div class="mt-2 text-sm text-stone-400">
-        <a href="https://git.sr.ht/~kyoheiu/way-rs" target="_blank">v0.3.0</a>
+        <a href="https://git.sr.ht/~kyoheiu/way-rs" target="_blank">{ver}</a>
       </div>
       <div>
         <div class="m-2 flex flex-col items-center">
-          <div class="m-2">
             <input
-              class="text-stone-600"
+              class="text-stone-600 w-2/3 mt-2 mb-1"
               type="text"
               bind:value={dn}
               placeholder="DN"
               required
             />
-          </div>
-          <div class="m-2">
             <input
-              class="text-stone-600"
+              class="text-stone-600 w-2/3 mt-1 mb-2"
               type="password"
               bind:value={passwd}
               placeholder="PASSWORD"
               required
             />
-          </div>
           <div>
             <button class="mt-4 bg-slate-600" on:click={() => login()}>
               &nbsp;GO&nbsp;
@@ -113,7 +110,7 @@
       <div class="text-3xl">WAY</div>
       <div class="mb-4 mt-2 text-sm text-stone-400">
         <a href="https://git.sr.ht/~kyoheiu/way-rs" target="_blank"
-          >way v0.3.0</a
+          >{ver}</a
         >
       </div>
       <div>
