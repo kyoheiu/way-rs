@@ -12,6 +12,7 @@ use cookie::SameSite;
 use error::Error;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use std::env;
 use std::sync::Arc;
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
@@ -60,6 +61,8 @@ struct Link {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    tracing_subscriber::fmt().init();
+    info!("Initialized log.");
     let core = Arc::new(Core::default()?);
 
     // build our application with a single route
@@ -151,7 +154,7 @@ async fn login(
     let (con, mut ldap) = ldap3::LdapConnAsync::new(&env::var("WAY_NETWORK")?.to_string()).await?;
     ldap3::drive!(con);
     if let Ok(_result) = ldap.simple_bind(username, password).await?.success() {
-        println!("{:#?}", _result);
+        info!("Logged in.");
         let my_claims = Claims {
             sub: username.to_string(),
             exp: 2000000000,
@@ -205,7 +208,7 @@ async fn logout(cookies: Cookies) -> Result<impl IntoResponse, Error> {
             .http_only(true)
             .finish();
         cookies.add(cookie);
-        println!("cookie removed");
+        info!("Cookie removed: Logged out.");
     }
     Ok(StatusCode::OK)
 }
